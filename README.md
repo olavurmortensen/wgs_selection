@@ -1,6 +1,6 @@
 # WGS selection through genealogical kinship
 
-In this project, the Genealogy Registry of the Genetic Biobank of the Faroe Islands is used to select individuals from the FarGen cohort (www.fargen.fo) for whole-genome sequencing. The `wgs_selection.Rmd` R notebook reads in a genealogy of the FarGen cohort, and calculates kinship coefficients. We then explore population structure of this cohort before selecting a number of individuals to best represent the general population.
+In this project, the Genealogy Registry of the Genetic Biobank of the Faroe Islands is used to select individuals from the FarGen cohort (www.fargen.fo) for whole-genome sequencing. The `wgs_selection.html` file is a rendered R notebook that shows how the samples were selected. Briefly, we read in a genealogy of the FarGen cohort, and calculated the kinship coefficients. We then explored population structure of this cohort before selecting a number of individuals to best represent the general population.
 
 ## Geographical stratification
 
