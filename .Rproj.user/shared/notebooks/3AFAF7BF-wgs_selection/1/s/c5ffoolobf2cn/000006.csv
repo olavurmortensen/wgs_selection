@@ -1,8 +1,0 @@
-"0","ped_path = '/home/olavur/experiments/2020-06-16_aebs/data/trees/fargen.csv'"
-"0","df = read.csv(ped_path, fileEncoding = ""ISO-8859-1"")"
-"0","# Discard unused columns."
-"0","df = df %>% select(-c(birth_place, birth_year))"
-"0","# Rename columns to be consistent with the ones used in kinship2."
-"0","df = df %>% rename(id=ind, dadid=father, momid=mother)"
-"0","# Recode the sex indicators to match that in kinship2."
-"0","df = df %>% mutate(sex = if_else(sex == 'M', 1, 2))"

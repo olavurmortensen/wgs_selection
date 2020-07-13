@@ -1,4 +1,4 @@
-activeClientUrl="http://hms-beagle2.compute.10.12.139.152.xip.io/"
+activeClientUrl="http://hms-beagle.compute.10.12.139.152.xip.io/"
 build-last-errors="[]"
 build-last-errors-base-dir=""
 build-last-outputs="[]"
@@ -6,5 +6,5 @@ compile_pdf_state="{\"errors\":[],\"output\":\"\",\"running\":false,\"tab_visibl
 files.monitored-path="~/experiments/2019-11-06_linkseq/tests/main_test/tiny-bcl/outs/multiqc_logs/AnalyzeCovariates"
 find-in-files-state="{\"handle\":\"\",\"input\":\"\",\"path\":\"\",\"regex\":false,\"results\":{\"file\":[],\"line\":[],\"lineValue\":[],\"matchOff\":[],\"matchOn\":[]},\"running\":false}"
 imageDirtyState="1"
-portToken="9f6b00b7c5e6"
+portToken="c323c8d80ed2"
 saveActionState="-1"

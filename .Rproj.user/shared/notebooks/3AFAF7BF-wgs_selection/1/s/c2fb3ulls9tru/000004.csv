@@ -1,2 +1,0 @@
-"0","ped_ids = as.character(ped_obj$id)"
-"0","tt = assertthat::assert_that(sum(!(fargen_rin %in% ped_ids)) == 0, msg='Error: some FarGen participant IDs were not found in pedigree.')"

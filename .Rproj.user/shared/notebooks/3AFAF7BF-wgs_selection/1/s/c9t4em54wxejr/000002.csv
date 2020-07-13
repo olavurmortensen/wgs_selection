@@ -1,5 +1,0 @@
-"0","wgs_candidates = probands_nonmissing[mask_related]"
-"0",""
-"0","writeLines(sprintf(""%d probands discarded due to high relatedness. Kept %d WGS candidates."", sum(!mask_related), sum(mask_related)))"
-"1","1234 probands discarded due to high relatedness. Kept 125 WGS candidates.
-"

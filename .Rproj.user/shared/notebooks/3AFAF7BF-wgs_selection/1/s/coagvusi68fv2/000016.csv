@@ -1,6 +1,0 @@
-"0","csv_colnames = names(kc_df)"
-"0","csv_ids = sapply(csv_colnames, function(x) str_sub(x, start=2))"
-"0","names(csv_ids) = NULL"
-"0","csv_ids = sort(csv_ids)"
-"0","probands_nonmissing_sorted = sort(probands_nonmissing)"
-"0","res = assertthat::assert_that(sum(csv_ids != probands_nonmissing_sorted) == 0, msg='Error: proband IDs don\'t match IDs in kinship matrix CSV.')"
