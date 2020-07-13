@@ -1,0 +1,389 @@
+---
+title: "Selection of samples for whole-genome sequencing"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r eval=FALSE}
+install.packages('ggplot2')
+install.packages('dplyr')
+install.packages('magrittr')
+install.packages('devtools')
+```
+
+```{r message=FALSE}
+library(ribd)
+library(kinship2)
+library(ggplot2)
+library(dplyr)
+library(magrittr)
+library(stringr)
+library(readr)
+```
+
+
+
+# Read pedigree
+
+Read a CSV with the pedigree of the FarGen cohort. We will not be using the `birth_place` and `birth_year` columns, so we discard these. We also rename the columns so that they match those used in the `kinship2` package, and recode the sex indicators for the same reason.
+
+```{r}
+ped_path = '/home/olavur/experiments/2020-06-16_aebs/data/trees/fargen.csv'
+df = read.csv(ped_path, fileEncoding = "ISO-8859-1")
+# Discard unused columns.
+df = df %>% select(-c(birth_place, birth_year))
+# Rename columns to be consistent with the ones used in kinship2.
+df = df %>% rename(id=ind, dadid=father, momid=mother)
+# Recode the sex indicators to match that in kinship2.
+df = df %>% mutate(sex = if_else(sex == 'M', 1, 2))
+```
+
+The `fixParents` function from the `kinship2` package adds missing parents to the pedigree, and if sex does not match parental status (i.e. mother should be female) this is fixed.
+
+```{r}
+df_fixed = with(df, fixParents(id, dadid, momid, sex))
+```
+
+**TODO:** what changes does `fixParents` make? How many new father/mother IDs have been introduced? Have any sexes been changed?
+
+```{r}
+writeLines(sprintf('%d individuals added to pedigree.', nrow(df_fixed) - nrow(df)))
+```
+
+Luckily, sex and parental status matched in all cases, as we can see below.
+
+```{r}
+df_fixed_orig_inds = df_fixed %>% filter(id %in% df$id)
+sex_diff = sum(df$sex != df_fixed_orig_inds$sex)
+writeLines(sprintf('Sex corrected for %d individuals.', sex_diff))
+```
+
+Construct a `kinship2` pedigree object.
+
+```{r}
+ped_obj = with(df_fixed, pedigree(id, dadid, momid, sex))
+ped_obj
+```
+
+# Get IDs of FarGen participants
+
+Get the IDs of the FarGen participants.
+
+```{r}
+# This CSV file has FarGen number (FN) IDs and IDs from AEBS (RIN).
+fargen_ids_path = '/home/olavur/experiments/2020-06-16_aebs/data/ids/fargen_rin_samplename.csv'
+fargen_ids_df = read.csv(fargen_ids_path)
+
+# Get just the RIN in a vector, as characters.
+fargen_rin = as.character(fargen_ids_df$rin)
+
+writeLines(sprintf('Working with %d FarGen participants.', length(fargen_rin)))
+
+# If there are duplicate RIN, this test will fail.
+tt = assertthat::assert_that(length(fargen_rin) == length(unique(fargen_rin)), msg='Error: non-unique IDs in FarGen participant list.')
+```
+
+Check that all individuals can be found in pedigree.
+
+```{r}
+# RIN IDs from pedigree.
+ped_ids = as.character(ped_obj$id)
+# If any of the FarGen individuals cannot be found in the pedigree, this test will fail.
+tt = assertthat::assert_that(sum(!(fargen_rin %in% ped_ids)) == 0, msg='Error: some FarGen participant IDs were not found in pedigree.')
+```
+
+
+# Geographical stratification
+
+Get the region identifiers. This CSV contains the region identifiers (1-6) for all individuals in the genealogy registry. These region identifiers tells us which part of the Faroe Islands each individual was born in.
+
+```{r}
+# Read the CSV.
+regions_path = '/home/olavur/experiments/2020-06-16_aebs/data/placenames/rin_region.csv'
+regions_df = read.csv(regions_path)
+
+# Create a named vector, instead of using the dataframe.
+regions_all = regions_df$region
+names(regions_all) = regions_df$ind
+
+# Print some simple statistics.
+
+# Number of individuals in AEBS.
+n_total = length(regions_all)
+
+# Count the number of missing values, and get the fraction.
+n_na = sum(is.na(regions_all))
+writeLines(sprintf('Proportion of NA: %.4f', n_na / n_total))
+
+# Number of individuals in AEBS with defined region.
+n_nonmissing = length(regions_all[!is.na(regions_all)])
+
+# Proportions for each region, ignoring missing values.
+writeLines('Proportion of each region:')
+region_prop_all = table(regions_all) / n_nonmissing
+print(region_prop_all)
+```
+
+Obtain a list of region identifiers for the FarGen participants. Remove any individuals with missing region identifier. The remaining individuals will be referred to as the "probands" from time to time.
+
+```{r}
+# Region identifiers for FarGen individuals.
+regions_fargen = regions_all[fargen_rin]
+
+# Remove missing.
+probands_nonmissing = fargen_rin[!is.na(regions_fargen)]
+regions_nonmissing = regions_fargen[!is.na(regions_fargen)]
+
+# Print some simple statistics.
+
+writeLines(sprintf('Number of FarGen individuals with defined (non-missing) region: %d', length(probands_nonmissing)))
+
+writeLines('Proportion of each region:')
+table(regions_nonmissing) / length(regions_nonmissing)
+```
+
+The proportions of individuals in each region is printed above for both the entire genealogy registry and for the FarGen cohort. As we can see, region number 3, which is the capital region, is substantially over-represented.
+
+Later we shall sample individuals from each region in the same proportion as in the original population. Below we calculate how many samples that corresponds to for each region.
+
+```{r}
+n_wgs = 40
+# We multiply the number of desired WGS samples by the region proportions in AEBS.
+# We also round to the nearest integer.
+wgs_per_region = round(n_wgs * region_prop_all)
+
+writeLines('WGS samples per region:')
+print(wgs_per_region)
+
+# If the number of "sampled" individuals (wgs_per_region) isn't equal to n_wgs, this test will fail.
+res = assertthat::assert_that(sum(wgs_per_region) == n_wgs, msg=sprintf('Error: samples don\'t sum to %d', n_wgs))
+```
+
+# Calculate pairwise kinship coefficients
+
+We calculate the kinship for the entire pedigree using a method from the `kinship2` package. The algorithm is based on Lange 1997:
+
+> K Lange, Mathematical and Statistical Methods for Genetic Analysis, Springer-Verlag, New York, 1997.
+
+This takes about half a minute on the machine I ran this on, and used just above 4 GB of memory.
+
+```{r eval=FALSE}
+kc_mat = kinship2::kinship(ped_obj)
+```
+
+We are only going to use the kinship coefficients between the probands (FarGen participants with non-missing region identifiers), so we discard everything else. After we clear up the memory the remaining data is only a couple of megabytes.
+
+```{r eval=FALSE}
+kc_mat = kc_mat[probands_nonmissing, probands_nonmissing]
+gc()
+```
+
+We write the kinship matrix to a file, so we don't have to calculate this again.
+
+```{r eval=FALSE}
+# Path to write kinship matrix to.
+kc_file <- "/home/olavur/experiments/2020-06-16_aebs/data/wgs_selection/kinship/fargen_non-missing_region.csv"
+
+# Convert to dataframe and write to CSV.
+kc_df <- data.frame(kc_mat)
+# Write only column names, no row names.
+write.csv(kc_df, file=kc_file, row.names=FALSE)
+```
+
+We read the kinship matrix from file, and make sure the columns and rows have the correct names.
+
+```{r}
+# Path to write kinship matrix to.
+kc_file <- "/home/olavur/experiments/2020-06-16_aebs/data/wgs_selection/kinship/fargen_non-missing_region.csv"
+
+kc_df = read.csv(kc_file)
+
+kc_mat = kc_df %>%
+    unlist() %>%
+    matrix(nrow=length(probands_nonmissing))
+
+# Overwrite column names and write row names.
+colnames(kc_mat) = probands_nonmissing
+rownames(kc_mat) = probands_nonmissing
+```
+
+Make sure that the column names in the kinship file match `probands_nonmissing`.
+
+```{r}
+# Column names from the dataframe read from CSV.
+csv_colnames = names(kc_df)
+
+# The column names start with an "X", and then the RIN follows. Remove this "X".
+csv_ids = sapply(csv_colnames, function(x) str_sub(x, start=2))
+names(csv_ids) = NULL  # csv_ids is a named vector. Remove the names.
+
+# Sort both vectors.
+csv_ids = sort(csv_ids)
+probands_nonmissing_sorted = sort(probands_nonmissing)
+
+# If the probands_nonmissing and csv_ids vectors don't match completely, this test will fail.
+res = assertthat::assert_that(sum(csv_ids != probands_nonmissing_sorted) == 0, msg='Error: proband IDs don\'t match IDs in kinship matrix CSV.')
+```
+
+
+# Relatedness pruning
+
+Before we do a principal component analysis, we want to remove highly related individuals. We do this because it is difficult to detect population structure using PCA when individuals are closely related.
+
+We want to remove any relationships with kinship coefficient higher than $2^{-4}$, which corresponds to a first-cousin relationship. We want to do this in a way that keeps as many of the individuals as possible. We will use my [prune_related Python tool](https://github.com/ilegusavnid/prune_related) for this, which solves the *maximum independet set* problem.
+
+Download "prune_related" project and install dependencies via `conda`.
+
+```
+git clone https://github.com/ilegusavnid/prune_related.git
+conda env create -f prune_related/environment.yml
+```
+
+Activate `conda` virtual environment and run the `prune_related.py` script. We specify a kinship threshold of $0.0625$ and specify that the kinship file contains column names.
+
+```
+conda activate prune_related
+python prune_related/prune_related.py \
+    data/wgs_selection/kinship/fargen_non-missing_region.csv \
+    0.0625 \
+    data/wgs_selection/unrelated_00625_fargen_non-missing_region.txt \
+    true
+```
+
+The result from `prune_related` is a list of unrelated individuals. We read this file.
+
+```{r}
+# Read the file to a vector.
+unrelated_path = '/home/olavur/experiments/2020-06-16_aebs/data/wgs_selection/unrelated_00625_fargen_non-missing_region.txt'
+unrelated = read_lines(unrelated_path) %>% as.numeric()
+
+# The list from "prune_related.py" is 0-indexed, so we convert it to 1-indexed.
+unrelated = unrelated + 1
+
+writeLines(sprintf('Relatedness pruning kept %d out of %d individuals.', length(unrelated), length(probands_nonmissing)))
+```
+
+
+```{r}
+probands_unrelated = probands_nonmissing[unrelated]
+regions_unrelated = regions_nonmissing[unrelated]
+n_probands_unrelated = length(probands_unrelated)
+kc_mat_unrelated = kc_mat[probands_unrelated, probands_unrelated]
+writeLines(sprintf("Working on %d individuals.", n_probands_unrelated))
+```
+
+## Relatedness pruning (greedy algorithm)
+
+The `prune_related` method is not super fast, as the algorithm that approximates the maximum independent set has a worst-case time complexity of $O(\frac{n}{(\log n)^2})$. But if we want something faster, we can always use this greedy algorithm.
+
+```{r eval=FALSE}
+greedy_prune_related = function(kc_thres, kc_mat) {
+  n_probands = dim(kc_mat)[1]
+  
+  # A mask vector of which individuals to include.
+  mask_related <- rep(TRUE, n_probands)
+  
+  # Keep track of indexes.
+  idx_proband <- seq(1, n_probands)
+  
+  # Lower triangular matrix.
+  kc_tri <- kc_mat
+  kc_tri[upper.tri(kc_tri)] <- 0
+  diag(kc_tri) <- 0
+  
+  # Check whether relationships above the specified degree exist.
+  cond <- sum(kc_tri > kc_thres) > 0
+  # While such relationships exist.
+  while(cond) {
+    # Count the number of first or second degree relationships per person.
+    n_related <- colSums(kc_tri[mask_related, mask_related] > kc_thres)
+    
+    # Get the index of the individual with the highest number of these relationships.
+    # Resolve redundancies randomly by picking the first one.
+    idx <- idx_proband[mask_related][n_related == max(n_related)][1]
+    
+    # Exclude this proband.
+    mask_related[idx] <- FALSE
+    
+    # Update condition.
+    cond <- sum(kc_tri[mask_related, mask_related] > kc_thres) > 0
+  }
+  
+  mask_related
+}
+```
+
+
+
+
+# Principal component analysis
+
+```{r}
+kc_pc <- prcomp(kc_mat_unrelated, rank.=2, scale.=TRUE)
+```
+
+
+```{r fig.width=10, fig.height=8, echo=FALSE}
+pc_df <- data.frame(kc_pc$x)
+ggplot(pc_df, aes(x=PC1, y=PC2)) +
+  geom_point(size=0.5, aes(color=factor(regions_unrelated))) + 
+  labs(title="PCA of kinship", subtitle="Geographical stratification of the FarGen cohort", color='Region') +
+  theme(plot.title=element_text(hjust=0.5), plot.subtitle=element_text(hjust=0.5))
+```
+
+# Sample selection
+
+The sample selection works exactly the same as the relatedness pruning, only we will increase the kinship threshold. Since we increase the threshold, the relatedness pruning algorithm has more individuals work on and try to remove, and therefore the algorithm is slower. Therefore, we will use the greedy algorithm this time.
+
+```{r}
+mask_related = greedy_prune_related(2^-7, kc_mat)
+```
+
+```{r}
+wgs_candidates = probands_nonmissing[mask_related]
+
+writeLines(sprintf("%d probands discarded due to high relatedness. Kept %d WGS candidates.", sum(!mask_related), sum(mask_related)))
+```
+
+**TODO:** sample equal number of males and females.
+
+
+```{r}
+# Region identifiers for FarGen individuals.
+regions_candidates = regions_all[wgs_candidates]
+
+# Print some simple statistics.
+
+writeLines('Proportion of each region:')
+table(regions_candidates)
+```
+
+
+# Session info
+
+```{r}
+devtools::session_info()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,4 @@
+"0","writeLines(sprintf('%d individuals added to pedigree.', nrow(df_fixed) - nrow(df)))
+"
+"1","832 individuals added to pedigree.
+"

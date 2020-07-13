@@ -1,0 +1,5 @@
+"0","df_fixed_orig_inds = df_fixed %>% filter(id %in% df$id)"
+"0","sex_diff = sum(df$sex != df_fixed_orig_inds$sex)"
+"0","writeLines(sprintf('Sex corrected for %d individuals.', sex_diff))"
+"1","Sex corrected for 0 individuals.
+"

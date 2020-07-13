@@ -1,0 +1,188 @@
+---
+title: "Kinship"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r eval=FALSE}
+install.packages('pedtools')
+install.packages('ribd')
+install.packages('ggplot2')
+install.packages('dplyr')
+install.packages('magrittr')
+```
+
+```{r message=FALSE}
+library(ribd)
+library(kinship2)
+library(ggplot2)
+library(dplyr)
+library(magrittr)
+```
+
+# Read pedigree
+
+```{r}
+ped_path = '/home/olavur/experiments/2020-06-16_aebs/data/trees/fargen.csv'
+df = read.csv(ped_path, fileEncoding = "ISO-8859-1")
+```
+
+
+```{r}
+df_fixed = with(df, fixParents(ind, father, mother, sex))
+```
+
+**TODO:** what changes does `fixParents` make? How many new father/mother IDs have been introduced? Have any sexes been changed?
+
+```{r}
+ped_obj = with(df_fixed, pedigree(id, dadid, momid, sex))
+ped_obj
+```
+
+# Calculate pairwise kinship coefficients
+
+```{r}
+kc_mat = kinship2::kinship(ped_obj)
+```
+
+```{r}
+fargen_ids_path = '/home/olavur/experiments/2020-06-16_aebs/data/ids/fargen_rin_samplename.csv'
+fargen_ids_df = read.csv(fargen_ids_path)
+```
+
+```{r}
+fargen_rin = as.character(fargen_ids_df$rin)
+n_fargen = length(fargen_rin)
+kc_mat = kc_mat[fargen_rin, fargen_rin]
+gc()
+```
+
+**TODO:** Write the kinship matrix to a file.
+
+# Relatedness pruning
+
+```{r}
+# Kinship threshold.
+kc_thres <- 2^-4
+
+# A mask vector of which individuals to include.
+mask_related <- rep(TRUE, n_fargen)
+
+# Keep track of indexes.
+idx_proband <- seq(1, n_fargen)
+
+# Lower triangular matrix.
+kc_tri <- kc_mat
+kc_tri[upper.tri(kc_tri)] <- 0
+diag(kc_tri) <- 0
+
+# Check whether relationships above the specified degree exist.
+cond <- sum(kc_tri > kc_thres) > 0
+# While such relationships exist.
+while(cond) {
+  # Count the number of first or second degree relationships per person.
+  n_related <- colSums(kc_tri[mask_related, mask_related] > kc_thres)
+  
+  # Get the index of the individual with the highest number of these relationships.
+  # Resolve redundancies randomly by picking the first one.
+  idx <- idx_proband[mask_related][n_related == max(n_related)][1]
+  
+  # Exclude this proband.
+  mask_related[idx] <- FALSE
+  
+  # Update condition.
+  cond <- sum(kc_tri[mask_related, mask_related] > kc_thres) > 0
+}
+
+writeLines(sprintf("%d probands discarded due to high relatedness.", sum(!mask_related)))
+```
+
+```{r}
+probands = fargen_rin[mask_related]
+n_probands = length(probands)
+proband_kc_mat = kc_mat[probands, probands]
+writeLines(sprintf("Working on %d individuals.", n_probands))
+```
+
+
+
+# Geographical stratification
+
+
+```{r}
+regions_path = '/home/olavur/experiments/2020-06-16_aebs/data/placenames/rin_region.csv'
+regions_df = read.csv(rin_region_path)
+
+n_total = length(regions_df$region)
+
+n_na = sum(is.na(regions_df$region))
+writeLines(sprintf('Proportion of NA: %.4f', n_na / n_total))
+
+writeLines('Proportion of each region:')
+table(regions_df$region) / n_total
+```
+
+
+```{r}
+regions = regions_df$region
+names(regions) = regions_df$ind
+regions = regions[probands]
+
+n_total = length(regions)
+
+n_na = sum(is.na(regions))
+writeLines(sprintf('Proportion of NA: %.4f', n_na / n_total))
+
+writeLines('Proportion of each region:')
+table(regions) / n_total
+```
+
+```{r}
+sum(names(regions) != colnames(proband_kc_mat))
+```
+
+
+
+# Principal component analysis
+
+```{r}
+kc_pc <- prcomp(proband_kc_mat, rank.=2, scale.=TRUE)
+```
+
+
+```{r fig.width=10, fig.height=8, echo=FALSE}
+pc_df <- data.frame(kc_pc$x)
+ggplot(pc_df, aes(x=PC1, y=PC2)) +
+  geom_point(size=0.5, aes(color=factor(regions))) + 
+  labs(title="PCA of kinship", subtitle="Geographical stratification of the FarGen cohort", color='Region') +
+  theme(plot.title=element_text(hjust=0.5), plot.subtitle=element_text(hjust=0.5))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

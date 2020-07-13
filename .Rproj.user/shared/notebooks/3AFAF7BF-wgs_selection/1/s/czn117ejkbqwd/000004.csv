@@ -1,0 +1,7 @@
+"0","# Path to write kinship matrix to."
+"0","kc_file <- ""/home/olavur/experiments/2020-06-16_aebs/data/wgs_selection/kinship/fargen_non-missing_region.csv"""
+"0",""
+"0","# Convert to dataframe and write to CSV."
+"0","kc_df <- data.frame(kc_mat)"
+"0","# Write only column names, no row names."
+"0","write.csv(kc_df, file=kc_file, row.names=FALSE)"

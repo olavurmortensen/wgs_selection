@@ -1,0 +1,7 @@
+"0","fargen_ids_path = '/home/olavur/experiments/2020-06-16_aebs/data/ids/fargen_rin_samplename.csv'"
+"0","fargen_ids_df = read.csv(fargen_ids_path)"
+"0","fargen_rin = as.character(fargen_ids_df$rin)"
+"0","writeLines(sprintf('Working with %d FarGen participants.', length(fargen_rin)))"
+"1","Working with 1534 FarGen participants.
+"
+"0","tt = assertthat::assert_that(length(fargen_rin) == length(unique(fargen_rin)), msg='Error: non-unique IDs in FarGen participant list.')"

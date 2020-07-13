@@ -1,0 +1,10 @@
+"0","# Read the file to a vector."
+"0","unrelated_path = '/home/olavur/experiments/2020-06-16_aebs/data/wgs_selection/unrelated_00625_fargen_non-missing_region.txt'"
+"0","unrelated = read_lines(unrelated_path) %>% as.numeric()"
+"0",""
+"0","# The list from ""prune_related.py"" is 0-indexed, so we convert it to 1-indexed."
+"0","unrelated = unrelated + 1"
+"0",""
+"0","writeLines(sprintf('Relatedness pruning kept %d out of %d individuals.', length(unrelated), length(probands_nonmissing)))"
+"1","Relatedness pruning kept 769 out of 1359 individuals.
+"
