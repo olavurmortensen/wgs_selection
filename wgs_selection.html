@@ -1657,7 +1657,7 @@ library(scales)</code></pre>
 <div id="read-pedigree" class="section level1">
 <h1>Read pedigree</h1>
 <p>Read a CSV with the pedigree of the FarGen cohort. We will not be using the <code>birth_place</code> and <code>birth_year</code> columns, so we discard these. We also rename the columns so that they match those used in the <code>kinship2</code> package, and recode the sex indicators for the same reason.</p>
-<pre class="r"><code>ped_path = '/home/olavur/experiments/2020-06-16_aebs/data/trees/fargen.csv'
+<pre class="r"><code>ped_path = '/home/olavur/experiments/2020-06-16_wgs_selection/data/trees/fargen.csv'
 df = read.csv(ped_path, fileEncoding = &quot;ISO-8859-1&quot;)
 # Discard unused columns.
 df = df %&gt;% select(-c(birth_place, birth_year))
@@ -1684,7 +1684,7 @@ ped_obj</code></pre>
 <h1>Get IDs of FarGen participants</h1>
 <p>Get the IDs of the FarGen participants.</p>
 <pre class="r"><code># This CSV file has FarGen number (FN) IDs and IDs from AEBS (RIN).
-fargen_ids_path = '/home/olavur/experiments/2020-06-16_aebs/data/ids/fargen_rin_samplename.csv'
+fargen_ids_path = '/home/olavur/experiments/2020-06-16_wgs_selection/data/ids/fargen_rin_samplename.csv'
 fargen_ids_df = read.csv(fargen_ids_path)
 
 # Get just the RIN in a vector, as characters.
@@ -1704,7 +1704,7 @@ tt = assertthat::assert_that(sum(!(fargen_rin %in% ped_ids)) == 0, msg='Error: s
 <h1>Geographical stratification of FarGen cohort</h1>
 <p>Get the region identifiers. This CSV contains the region identifiers (1-6) for all individuals in the genealogy registry. These region identifiers tells us which part of the Faroe Islands each individual was born in.</p>
 <pre class="r"><code># Read the CSV.
-regions_path = '/home/olavur/experiments/2020-06-16_aebs/data/placenames/rin_region.csv'
+regions_path = '/home/olavur/experiments/2020-06-16_wgs_selection/data/placenames/rin_region.csv'
 regions_df = read.csv(regions_path)
 
 # Create a named vector, instead of using the dataframe.
@@ -1821,7 +1821,7 @@ res = assertthat::assert_that(sum(wgs_per_region) == n_wgs, msg=sprintf('Error: 
 gc()</code></pre>
 <p>We write the kinship matrix to a file, so we don’t have to calculate this again.</p>
 <pre class="r"><code># Path to write kinship matrix to.
-kc_file &lt;- &quot;/home/olavur/experiments/2020-06-16_aebs/data/wgs_selection/kinship/fargen_non-missing_region.csv&quot;
+kc_file &lt;- &quot;/home/olavur/experiments/2020-06-16_wgs_selection/data/wgs_selection/kinship/fargen_non-missing_region.csv&quot;
 
 # Convert to dataframe and write to CSV.
 kc_df &lt;- data.frame(kc_mat)
@@ -1829,7 +1829,7 @@ kc_df &lt;- data.frame(kc_mat)
 write.csv(kc_df, file=kc_file, row.names=FALSE)</code></pre>
 <p>We read the kinship matrix from file, and make sure the columns and rows have the correct names.</p>
 <pre class="r"><code># Path to write kinship matrix to.
-kc_file &lt;- &quot;/home/olavur/experiments/2020-06-16_aebs/data/wgs_selection/kinship/fargen_non-missing_region.csv&quot;
+kc_file &lt;- &quot;/home/olavur/experiments/2020-06-16_wgs_selection/data/wgs_selection/kinship/fargen_non-missing_region.csv&quot;
 
 kc_df = read.csv(kc_file)
 
@@ -1870,7 +1870,7 @@ python prune_related/prune_related.py \
     data/wgs_selection/unrelated_00625_fargen_non-missing_region.txt \
     true</code></pre>
 <p>Below we read the list of individuals found by <code>prune_related</code>.</p>
-<pre class="r"><code>unrelated_path = '/home/olavur/experiments/2020-06-16_aebs/data/wgs_selection/unrelated_00625_fargen_non-missing_region.txt'
+<pre class="r"><code>unrelated_path = '/home/olavur/experiments/2020-06-16_wgs_selection/data/wgs_selection/unrelated_00625_fargen_non-missing_region.txt'
 unrelated = read_lines(unrelated_path) %&gt;% as.numeric()
 
 # The list from &quot;prune_related.py&quot; is 0-indexed, so we convert it to 1-indexed.
@@ -2173,7 +2173,7 @@ pheatmap(kc_mat_wgs_zero_diag,
 <p>Make a dataframe with RIN and FN of all WGS candidates and write this to a file.</p>
 <pre class="r"><code>wgs_candidate_list = fargen_ids_df %&gt;% filter(rin %in% wgs_candidates)
 
-wgs_candidate_list_path = '/home/olavur/experiments/2020-06-16_aebs/data/wgs_selection/wgs_candidates.csv'
+wgs_candidate_list_path = '/home/olavur/experiments/2020-06-16_wgs_selection/data/wgs_selection/wgs_candidates.csv'
 write_csv(wgs_candidate_list, wgs_candidate_list_path)</code></pre>
 </div>
 </div>
@@ -2261,8 +2261,8 @@ write_csv(wgs_candidate_list, wgs_candidate_list_path)</code></pre>
 ##  P xfun           0.15      2020-06-21 [?] CRAN (R 4.0.1)               
 ##  P yaml           2.2.1     2020-02-01 [?] CRAN (R 4.0.1)               
 ## 
-## [1] /home/olavur/experiments/2020-06-16_aebs/wgs_selection/renv/library/R-4.0/x86_64-pc-linux-gnu
-## [2] /tmp/RtmpOdJcrG/renv-system-library
+## [1] /home/olavur/experiments/2020-06-16_wgs_selection/wgs_selection/renv/library/R-4.0/x86_64-pc-linux-gnu
+## [2] /tmp/RtmpWXlbRq/renv-system-library
 ## 
 ##  P ── Loaded and on-disk path mismatch.</code></pre>
 </div>

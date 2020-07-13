@@ -34,7 +34,7 @@ We will use the Genealogy Registry of the Genetic Biobank of the Faroe Islands t
 Read a CSV with the pedigree of the FarGen cohort. We will not be using the `birth_place` and `birth_year` columns, so we discard these. We also rename the columns so that they match those used in the `kinship2` package, and recode the sex indicators for the same reason.
 
 ```{r}
-ped_path = '/home/olavur/experiments/2020-06-16_aebs/data/trees/fargen.csv'
+ped_path = '/home/olavur/experiments/2020-06-16_wgs_selection/data/trees/fargen.csv'
 df = read.csv(ped_path, fileEncoding = "ISO-8859-1")
 # Discard unused columns.
 df = df %>% select(-c(birth_place, birth_year))
@@ -75,7 +75,7 @@ Get the IDs of the FarGen participants.
 
 ```{r}
 # This CSV file has FarGen number (FN) IDs and IDs from AEBS (RIN).
-fargen_ids_path = '/home/olavur/experiments/2020-06-16_aebs/data/ids/fargen_rin_samplename.csv'
+fargen_ids_path = '/home/olavur/experiments/2020-06-16_wgs_selection/data/ids/fargen_rin_samplename.csv'
 fargen_ids_df = read.csv(fargen_ids_path)
 
 # Get just the RIN in a vector, as characters.
@@ -103,7 +103,7 @@ Get the region identifiers. This CSV contains the region identifiers (1-6) for a
 
 ```{r}
 # Read the CSV.
-regions_path = '/home/olavur/experiments/2020-06-16_aebs/data/placenames/rin_region.csv'
+regions_path = '/home/olavur/experiments/2020-06-16_wgs_selection/data/placenames/rin_region.csv'
 regions_df = read.csv(regions_path)
 
 # Create a named vector, instead of using the dataframe.
@@ -199,7 +199,7 @@ We write the kinship matrix to a file, so we don't have to calculate this again.
 
 ```{r eval=FALSE}
 # Path to write kinship matrix to.
-kc_file <- "/home/olavur/experiments/2020-06-16_aebs/data/wgs_selection/kinship/fargen_non-missing_region.csv"
+kc_file <- "/home/olavur/experiments/2020-06-16_wgs_selection/data/wgs_selection/kinship/fargen_non-missing_region.csv"
 
 # Convert to dataframe and write to CSV.
 kc_df <- data.frame(kc_mat)
@@ -211,7 +211,7 @@ We read the kinship matrix from file, and make sure the columns and rows have th
 
 ```{r}
 # Path to write kinship matrix to.
-kc_file <- "/home/olavur/experiments/2020-06-16_aebs/data/wgs_selection/kinship/fargen_non-missing_region.csv"
+kc_file <- "/home/olavur/experiments/2020-06-16_wgs_selection/data/wgs_selection/kinship/fargen_non-missing_region.csv"
 
 kc_df = read.csv(kc_file)
 
@@ -270,7 +270,7 @@ python prune_related/prune_related.py \
 Below we read the list of individuals found by `prune_related`.
 
 ```{r}
-unrelated_path = '/home/olavur/experiments/2020-06-16_aebs/data/wgs_selection/unrelated_00625_fargen_non-missing_region.txt'
+unrelated_path = '/home/olavur/experiments/2020-06-16_wgs_selection/data/wgs_selection/unrelated_00625_fargen_non-missing_region.txt'
 unrelated = read_lines(unrelated_path) %>% as.numeric()
 
 # The list from "prune_related.py" is 0-indexed, so we convert it to 1-indexed.
@@ -638,7 +638,7 @@ Make a dataframe with RIN and FN of all WGS candidates and write this to a file.
 ```{r}
 wgs_candidate_list = fargen_ids_df %>% filter(rin %in% wgs_candidates)
 
-wgs_candidate_list_path = '/home/olavur/experiments/2020-06-16_aebs/data/wgs_selection/wgs_candidates.csv'
+wgs_candidate_list_path = '/home/olavur/experiments/2020-06-16_wgs_selection/data/wgs_selection/wgs_candidates.csv'
 write_csv(wgs_candidate_list, wgs_candidate_list_path)
 ```
 
