@@ -4,7 +4,7 @@ In this project, the Genealogy Registry of the Genetic Biobank of the Faroe Isla
 
 Before the WGS selection R notebook was run, there were some steps to produce the genealogies and associated data sets. These are shown below. The raw data used in this analysis is highly confidential, so only results are shown. The analysis was done on FarGen's High-Throughput Computational Cluster.
 
-The AEBS repository is used to read data from exported data from Ættarbandsskráin, and to reconstruct the genealogy of the individuals in the Fargen cohort. The AEBS repository can be found here: https://github.com/olavurmortensen/aebs
+The AEBS repository is used to read data from exported data from the Genealogy Registry, and to reconstruct the genealogy of the individuals in the Fargen cohort. The AEBS repository can be found here: https://github.com/olavurmortensen/aebs
 
 First add the AEBS scripts to path:
 
