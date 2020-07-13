@@ -2,6 +2,12 @@
 
 In this project, the Genealogy Registry of the Genetic Biobank of the Faroe Islands is used to select individuals from the FarGen cohort (www.fargen.fo) for whole-genome sequencing. The `wgs_selection.Rmd` R notebook reads in a genealogy of the FarGen cohort, and calculates kinship coefficients. We then explore population structure of this cohort before selecting a number of individuals to best represent the general population.
 
+## Geographical stratification
+
+The [dialect_map.pdf](https://github.com/olavurmortensen/wgs_selection/blob/master/dialect_map.pdf) file contains some information about how the the population was divided into regions in order to explore population structure.
+
+## Pre-processing genealogical data
+
 Before the WGS selection R notebook was run, there were some steps to produce the genealogies and associated data sets. These are shown below. The raw data used in this analysis is highly confidential, so only results are shown. The analysis was done on FarGen's High-Throughput Computational Cluster.
 
 The AEBS repository is used to read data from exported data from the Genealogy Registry, and to reconstruct the genealogy of the individuals in the Fargen cohort. The AEBS repository can be found here: https://github.com/olavurmortensen/aebs
