@@ -674,17 +674,11 @@ kc_mat_wgs_zero_diag[kc_mat_wgs_zero_diag == 0] = NA
 diag(kc_mat_wgs_zero_diag) = NA
 ```
 
-Below, we make a heatmap that shows the kinship matrix of the WGS candidates. Note that the highest kinship value is 0.007, which is approximately $2^{-7}$, the cut-off we defined for the WGS candidates.
+Below, we make a heatmap that shows the kinship matrix of the WGS candidates. Note that the highest kinship value is 0.0012, which is slightly lower than $2^{-6}$, the cut-off we defined for the WGS candidates.
 
-There is a dendrogram on both axes, that shows the hierarchical clustering of the individuals. We have also clustered the samples into three clusters, shown by splits in the matrix. We will refer to the clusters in each split as cluster 1, 2 and 3.
+There is a dendrogram on both axes, that shows the hierarchical clustering of the individuals. The region of each individual is annotated in the left hand side of the plot, and the corresponding color is noted in the right hand side.
 
-The region of each individual is annotated in the left hand side of the plot, and the corresponding color is noted in the right hand side.
 
-Note that individuals in cluster 1 are slightly closer related to each other than compared to rest of the individuals. There are relatively many individuals from region 2 in cluster 2. Similarly, cluster 3 is somewhat tightly related, and has an overweight of individuals from region 6.
-
-I tried running the sample selection several times with different random seeds, to produce different sets of WGS candidates. It was very common that there were three clusters, a region 2 cluster, a region 6 cluster and an "unrelated" cluster. In addition, cluster 1 usually was a combination of region 1, 2 and 3; this makes sense if we look at the population structure plot, considering that region 2 is the biggest region and is very closely related to region 1 and 3. Region 6 on the other hand is the most isolated region.
-
-To conclude, while there is some degree of population structure in this set of WGS candidates, it seems to be representative of the general population.
 
 ```{r, fig.width=8, fig.height=6}
 # "region" annotation data frame.
@@ -698,8 +692,6 @@ ann_colors = list(region=color_palette)  # Each annotation has a named vector.
 pheatmap(kc_mat_wgs_zero_diag,
          annotation_row=regions_candidates_df,
          annotation_colors=ann_colors,
-         cutree_cols=3,
-         cutree_rows=3,
          show_rownames=FALSE,
          show_colnames=FALSE)
 ```
