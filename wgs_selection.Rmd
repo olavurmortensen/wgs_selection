@@ -436,7 +436,7 @@ for (region in 1:6) {
 
 
 ```{r}
-# Make a 
+# Plot the kinship distribution for each region using a "violin plot".
 kc_zero  <- sum(kc_region_df$kc == 0)
 log_kc_df = kc_region_df %>% transmute(kc=log2(kc[kc != 0]), region=region)
 ggplot(log_kc_df, aes(kc, factor(region))) + 
@@ -485,15 +485,7 @@ kc_mat_unrelated2 = kc_mat[probands_unrelated2, probands_unrelated2]
 writeLines(sprintf("Working on %d individuals.", n_probands_unrelated2))
 ```
 
-Get the IDs of the individuals after pruning.
-
-```{r}
-probands_unrelated2 = probands_unrelated[mask_related2]
-
-writeLines(sprintf("%d probands discarded due to high relatedness. Kept %d WGS candidates.", sum(!mask_related2), sum(mask_related2)))
-```
-
-As a sanity check, let's see what the new highest kinship is, after relatedness pruning. After pruning, kinship should be less than $2^{-6} = 0.0156$.
+As a sanity check, let's see what the new highest kinship is, after relatedness pruning. After pruning, kinship should be less than $2^{-6} = 0.015625$.
 
 ```{r}
 kc_mat_unrelated2 = kc_mat[probands_unrelated2, probands_unrelated2]
@@ -502,7 +494,7 @@ max_kc_after = max(kc_mat_unrelated2[lower.tri(kc_mat_unrelated2)])
 writeLines(sprintf('Pruning threshold: 0.0078125\nMax kinship before pruning: %.4f\nMax kinship after pruning: %.4f', max_kc_before, max_kc_after))
 ```
 
-Below is the regional distribution for the WGS candidates.
+Below is the regional distribution for the WGS candidates. We need at least 8 per region.
 
 ```{r}
 # Region identifiers for FarGen individuals.
@@ -512,11 +504,14 @@ regions_unrelated2 = regions_all[probands_unrelated2]
 
 writeLines('Proportion of each region:')
 table(regions_unrelated2)
+
+# If one or more regions have less than wgs_per_region individuals, this test will fail.
+res = assertthat::assert_that(sum(table(regions_unrelated2) < wgs_per_region) == 0, msg=sprintf('Error: One or more regions have less than %d individuals.', wgs_per_region))
 ```
 
 ## Subsample regions
 
-Below, we draw random individuals from the list of individuals with kinship coefficient less than $2^{-7}$. So for example, we draw 6 random individuals from region 1, 16 random from region 2, and so on. We use a random seed to get the same result every time.
+Below, we draw 8 random individuals from the list of individuals with kinship coefficient less than $2^{-6}$.
 
 ```{r}
 # Set the RNG seed so we always get the same result.
@@ -528,7 +523,7 @@ for (region in 1:6) {
     # Get IDs of individuals in region.
     wgs_candidates_region = probands_unrelated2[regions_unrelated2 == region]
     # Sample individuals from this region.
-    temp = sample(wgs_candidates_region, wgs_per_region[region])
+    temp = sample(wgs_candidates_region, wgs_per_region)
     # Append to list.
     wgs_candidates = c(wgs_candidates, temp)
 }
@@ -541,34 +536,9 @@ regions_candidates = regions_all[wgs_candidates]
 
 writeLines('Proportion of each region:')
 table(regions_candidates)
-```
 
-## PCA of WGS candidates
-
-We will make the same plot as the population structure plot above, but color the WGS candidates instead of the regions.
-
-Below we just make a vector that will help us color the WGS candidates.
-
-```{r}
-# Make a vector of same length as proband list.
-probands_wgs_status = rep(0, length(probands_unrelated))
-# Use a named vector.
-names(probands_wgs_status) = probands_unrelated
-# All the elements in the vector corresponding to a WGS candidate will be a 1, the rest will be a 0.
-probands_wgs_status[wgs_candidates] = 1
-```
-
-As we see in the plot below, the WGS candidates don't seem to be biased, as they cover the entire plot quite nicely, and don't form clusters. This is an indication that these samples are *representative* of the cohort.
-
-```{r fig.width=10, fig.height=8}
-color_palette = c('#157EBF', '#78B430', '#FAA530', '#00E9E8', '#FFF73F', '#974C93')
-color_palette = color_palette[c(1, 3)]
-ggplot(pc_df, aes(x=PC1, y=PC2)) +
-  geom_point(size=0.7, aes(color=factor(probands_wgs_status))) + 
-  scale_colour_manual(values=color_palette) +
-  labs(title="PCA of kinship", subtitle=sprintf("FarGen cohort and %d WGS candidate samples", n_wgs),
-       color='Candidate status', x=sprintf('PC 1 (%.2f %%)', var_expl[1]), y=sprintf('PC 2 (%.2f %%)', var_expl[2])) +
-  theme(plot.title=element_text(hjust=0.5), plot.subtitle=element_text(hjust=0.5))
+# If all regions don't have exactly wgs_per_region individuals, this test will fail.
+res = assertthat::assert_that(sum(table(regions_unrelated2) < wgs_per_region) == 0, msg=sprintf('Error: One or more regions have less than %d individuals.', wgs_per_region))
 ```
 
 
