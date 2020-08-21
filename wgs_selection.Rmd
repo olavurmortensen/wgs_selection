@@ -11,6 +11,8 @@ install.packages('dplyr')
 install.packages('magrittr')
 install.packages('devtools')
 install.packages('pheatmap')
+install.packages("BiocManager")
+BiocManager::install("FamAgg")
 ```
 
 ```{r message=FALSE}
@@ -25,6 +27,7 @@ library(tibble)
 library(tidyr)
 library(pheatmap)
 library(scales)
+library(FamAgg)
 ```
 
 We will use the Genealogy Registry of the Genetic Biobank of the Faroe Islands to select a representative group of individuals from the FarGen cohort. It should be representative in the sense that they should be as distantly related as possible, to capture as much genetic variation as possible. We will mitigate geographical stratification as well, as there is some geographic bias in the FarGen cohort.
@@ -65,7 +68,7 @@ writeLines(sprintf('Sex corrected for %d individuals.', sex_diff))
 Construct a `kinship2` pedigree object.
 
 ```{r}
-ped_obj = with(df_fixed, pedigree(id, dadid, momid, sex))
+ped_obj = with(df_fixed, kinship2::pedigree(id, dadid, momid, sex))
 ped_obj
 ```
 
@@ -95,6 +98,61 @@ ped_ids = as.character(ped_obj$id)
 # If any of the FarGen individuals cannot be found in the pedigree, this test will fail.
 tt = assertthat::assert_that(sum(!(fargen_rin %in% ped_ids)) == 0, msg='Error: some FarGen participant IDs were not found in pedigree.')
 ```
+
+# Minimum lineage depth filtering
+
+We are going to exclude all individuals that have a minimum lineage depth under 2. With other words, we will exclude individuals whose grandparents are not recorded in the Genealogy Registry.
+
+We will use the `FamAgg` Bioconductor package for this purpose, so we will start by preparing a `FAData` pedigree object.
+
+```{r}
+# Convert kinship2 pedigree object to dataframe.
+ped_df = as.data.frame(ped_obj)
+
+# Add placeholder family ID.
+ped_df = ped_df %>% mutate(family=rep(1, nrow(ped_df)))
+
+# Construct FamAgg pedigree object.
+fad = FAData(pedigree=ped_df, family.col='family', father.col='dadid', mother.col='momid', sex.col='sex')
+```
+
+To check whether an individual has minimum depth of at least 2, I will count the total number of ancestors two generations back. If the total number of ancestors within 2 generations is less than 6, one or more grandparent (and perhaps parents) are missing. This is exemplified below. The individual's ID is highlighted in RED, and their ancestors are marked by an asterisk (`*`). Note that the total number of ancestors for this individual is 4, since two grandparents is missing, so we will exlcude this individual from further analysis.
+
+```{r}
+# ID of individual to check.
+id = '740605'
+# Count number of ancestors up to 2 generations back.
+anc = getAncestors(fad, id, max.generations=2)
+# Plot the pedigree of the individual.
+test_fad = FAData(buildPed(fad, id=id, max.generations.up=2))
+# Highlight both the individual and the ancestors.
+plotPed(test_fad, id=c(id, anc), highlight.ids=anc, proband.id=id)
+```
+
+For every FarGen participant, I shall calculate the number of ancestors up to 2 generations back. I also show a table, showing the frequency of each count value. We see that most of the individuals have four grandparents registered in the Genealogy Registry, which is good.
+
+```{r}
+# Make a function to calculate the number of ancestors.
+count_ancestors = function(id, obj=fad, max_gen=2) {
+    # Get the ancestors up to `max_gen` generations back.
+    anc = getAncestors(obj, id, max.generations=max_gen)
+    # Return the number of ancestors.
+    return(length(anc))
+}
+
+# Count the number of ancestors for each individual.
+anc_count = sapply(fargen_rin, count_ancestors)
+# Make a table of ancestor counts.
+table(anc_count)
+```
+
+Below we filter out all FarGen participants with missing grandparents in the genealogy. We shall continue with this set of individuals. We will from time to time refer to this continually evolving set of individuals as **probands**.
+
+```{r}
+min_anc = 6
+probands_mindepth = fargen_rin[anc_count == min_anc]
+```
+
 
 
 # Geographical stratification of FarGen cohort
@@ -128,40 +186,25 @@ region_prop_all = table(regions_all) / n_nonmissing
 print(region_prop_all)
 ```
 
-Obtain a list of region identifiers for the FarGen participants. Remove any individuals with missing region identifier.
+Obtain a list of region identifiers for the probands. Remove any individuals with missing region identifier.
 
 ```{r}
-# Region identifiers for FarGen individuals.
-regions_fargen = regions_all[fargen_rin]
+# Region identifiers for the probands.
+regions_fargen = regions_all[probands_mindepth]
 
 # Remove missing.
-probands_nonmissing = fargen_rin[!is.na(regions_fargen)]
+probands_nonmissing = probands_mindepth[!is.na(regions_fargen)]
 regions_nonmissing = regions_fargen[!is.na(regions_fargen)]
 
 # Print some simple statistics.
 
-writeLines(sprintf('Number of FarGen individuals with defined (non-missing) region: %d', length(probands_nonmissing)))
+writeLines(sprintf('Number of probands with defined (non-missing) region: %d', length(probands_nonmissing)))
 
 writeLines('Proportion of each region:')
 table(regions_nonmissing) / length(regions_nonmissing)
 ```
 
 The proportions of individuals in each region is printed above for both the entire genealogy registry and for the FarGen cohort. As we can see, region number 3, which is the capital region, is substantially over-represented.
-
-Later we shall sample individuals from each region in the same proportion as in the original population. Below we calculate how many samples that corresponds to for each region.
-
-```{r}
-n_wgs = 50
-# We multiply the number of desired WGS samples by the region proportions in AEBS.
-# We also round to the nearest integer.
-wgs_per_region = round(n_wgs * region_prop_all)
-
-writeLines('WGS samples per region:')
-print(wgs_per_region)
-
-# If the number of "sampled" individuals (wgs_per_region) isn't equal to n_wgs, this test will fail.
-res = assertthat::assert_that(sum(wgs_per_region) == n_wgs, msg=sprintf('Error: samples don\'t sum to %d', n_wgs))
-```
 
 The map below shows the Faroe Islands and where the six regions each have their own color. The table below the image shows the region number ID, the name of the region and the corresponding color on the map.
 
@@ -188,7 +231,7 @@ This takes about half a minute on the machine I ran this on, and used just above
 kc_mat = kinship2::kinship(ped_obj)
 ```
 
-We are only going to use the kinship coefficients between the probands (FarGen participants with non-missing region identifiers), so we discard everything else. After we clear up the memory the remaining data is only a couple of megabytes.
+We are only going to use the kinship coefficients between the probands, so we discard everything else. After we clear up the memory the remaining data is only a couple of megabytes.
 
 ```{r eval=FALSE}
 kc_mat = kc_mat[probands_nonmissing, probands_nonmissing]
@@ -199,7 +242,7 @@ We write the kinship matrix to a file, so we don't have to calculate this again.
 
 ```{r eval=FALSE}
 # Path to write kinship matrix to.
-kc_file <- "/home/olavur/experiments/2020-06-16_wgs_selection/data/wgs_selection/kinship/fargen_non-missing_region.csv"
+kc_file <- "/home/olavur/experiments/2020-06-16_wgs_selection/data/wgs_selection/kinship/probands_kinship.csv"
 
 # Convert to dataframe and write to CSV.
 kc_df <- data.frame(kc_mat)
@@ -211,7 +254,7 @@ We read the kinship matrix from file, and make sure the columns and rows have th
 
 ```{r}
 # Path to write kinship matrix to.
-kc_file <- "/home/olavur/experiments/2020-06-16_wgs_selection/data/wgs_selection/kinship/fargen_non-missing_region.csv"
+kc_file <- "/home/olavur/experiments/2020-06-16_wgs_selection/data/wgs_selection/kinship/probands_kinship.csv"
 
 kc_df = read.csv(kc_file)
 
@@ -270,7 +313,7 @@ python prune_related/prune_related.py \
 Below we read the list of individuals found by `prune_related`.
 
 ```{r}
-unrelated_path = '/home/olavur/experiments/2020-06-16_wgs_selection/data/wgs_selection/unrelated_00625_fargen_non-missing_region.txt'
+unrelated_path = '/home/olavur/experiments/2020-06-16_wgs_selection/data/wgs_selection/unrelated_probands_00625.txt'
 unrelated = read_lines(unrelated_path) %>% as.numeric()
 
 # The list from "prune_related.py" is 0-indexed, so we convert it to 1-indexed.
@@ -368,14 +411,78 @@ ggplot(pc_df, aes(x=PC1, y=PC2)) +
   theme(plot.title=element_text(hjust=0.5), plot.subtitle=element_text(hjust=0.5))
 ```
 
+# Kinship distribution in the regions
 
+Below, in the next cell, we plot the distribution of kinship values for each region. We do this by making a kinship matrix subset that is only between individuals in a given region. The kinship values are plotted on a log-2 scale, since this makes the distributions easier to compare, and since the base 2 exponential is quite natural for kinship values. The plot then shows an estimated density via a "violin plot". Values of zero kinship are excluded from this plot.
+
+```{r}
+# Prepare a dataframe for plotting.
+kc_region_df = data.frame(kc=c(), region=c())
+for (region in 1:6) {
+    # Get IDs of individuals in region.
+    probands_region = probands_unrelated[regions_unrelated == region]
+    
+    # Get the kinship matrix for these individuals.
+    kc_mat_region = kc_mat[probands_region, probands_region]
+    
+    # Turn it into a vector.
+    kc_vec <- kc_mat_region[lower.tri(kc_mat_region)]
+    
+    # Add to dataframe.
+    kc_region_df_temp = data.frame(kc=kc_vec, region=region)
+    kc_region_df = bind_rows(kc_region_df, kc_region_df_temp)
+}
+```
+
+
+```{r}
+# Make a 
+kc_zero  <- sum(kc_region_df$kc == 0)
+log_kc_df = kc_region_df %>% transmute(kc=log2(kc[kc != 0]), region=region)
+ggplot(log_kc_df, aes(kc, factor(region))) + 
+    geom_violin() +
+    scale_x_continuous("Kinship coefficient (log base 2)", labels=math_format(2^.x))+
+    labs(y='Region', title='Distribution of kinship values for each region')
+```
+
+Note in the kinship distributions above that the regions are surprisingly similar. One key difference is that the capital region (3) has a longer lower tail than the others.
 
 # Sample selection
 
-The sample selection works exactly the same as the relatedness pruning, only we will increase the kinship threshold. Since we increase the threshold, the relatedness pruning algorithm has more individuals work on and try to remove, and therefore the algorithm is slower. Therefore, we will use the greedy algorithm this time.
+The sample selection works exactly the same as the relatedness pruning, only we will increase the kinship threshold.
+
+We need 40 samples, but we will select 48 so that we have some redundancy in case some samples are not usable. 48 is divisible by 6, so we get 8 samples per region.
 
 ```{r}
-mask_related2 = greedy_prune_related(2^-7, kc_mat_unrelated)
+n_wgs = 48
+regions_unique = unique(regions_all)
+regions_unique = regions_unique[!is.na(regions_unique)]
+n_regions = length(regions_unique)
+wgs_per_region = n_wgs / n_regions
+writeLines(sprintf('We will sample %d individuals per region.', wgs_per_region))
+```
+
+## Relatedness pruning 2.0
+
+We do as in the "relatedness pruning" section above, only with a lower kinship threshold of $2^{-6} = 0.015625$.
+
+```{r}
+unrelated2_path = '/home/olavur/experiments/2020-06-16_wgs_selection/data/wgs_selection/unrelated_probands_0015625.txt'
+unrelated2 = read_lines(unrelated2_path) %>% as.numeric()
+
+# The list from "prune_related.py" is 0-indexed, so we convert it to 1-indexed.
+unrelated2 = unrelated2 + 1
+writeLines(sprintf('Relatedness pruning kept %d out of %d individuals.', length(unrelated2), length(probands_nonmissing)))
+```
+
+Subset lists of individuals and regions and the kinship matrix.
+
+```{r}
+probands_unrelated2 = probands_nonmissing[unrelated2]
+regions_unrelated2 = regions_nonmissing[unrelated2]
+n_probands_unrelated2 = length(probands_unrelated2)
+kc_mat_unrelated2 = kc_mat[probands_unrelated2, probands_unrelated2]
+writeLines(sprintf("Working on %d individuals.", n_probands_unrelated2))
 ```
 
 Get the IDs of the individuals after pruning.
@@ -386,7 +493,7 @@ probands_unrelated2 = probands_unrelated[mask_related2]
 writeLines(sprintf("%d probands discarded due to high relatedness. Kept %d WGS candidates.", sum(!mask_related2), sum(mask_related2)))
 ```
 
-As a sanity check, let's see what the new highest kinship is, after relatedness pruning. After pruning, kinship should be less than $2^{-7} = 0.0078125$.
+As a sanity check, let's see what the new highest kinship is, after relatedness pruning. After pruning, kinship should be less than $2^{-6} = 0.0156$.
 
 ```{r}
 kc_mat_unrelated2 = kc_mat[probands_unrelated2, probands_unrelated2]
@@ -407,11 +514,7 @@ writeLines('Proportion of each region:')
 table(regions_unrelated2)
 ```
 
-Below we print the desired number of individuals per region, which we calculated earlier.
-
-```{r}
-wgs_per_region
-```
+## Subsample regions
 
 Below, we draw random individuals from the list of individuals with kinship coefficient less than $2^{-7}$. So for example, we draw 6 random individuals from region 1, 16 random from region 2, and so on. We use a random seed to get the same result every time.
 
