@@ -116,17 +116,33 @@ ped_df = ped_df %>% mutate(family=rep(1, nrow(ped_df)))
 fad = FAData(pedigree=ped_df, family.col='family', father.col='dadid', mother.col='momid', sex.col='sex')
 ```
 
-To check whether an individual has minimum depth of at least 2, I will count the total number of ancestors two generations back. If the total number of ancestors within 2 generations is less than 6, one or more grandparent (and perhaps parents) are missing. This is exemplified below. The individual's ID is highlighted in RED, and their ancestors are marked by an asterisk (`*`). Note that the total number of ancestors for this individual is 4, since two grandparents is missing, so we will exlcude this individual from further analysis.
+To check whether an individual has minimum depth of at least 2, I will count the total number of ancestors two generations back. If the total number of ancestors within 2 generations is less than 6, one or more grandparent (and perhaps parents) are missing. This is exemplified below. The individual's ID is highlighted in RED, and their ancestors are marked by an asterisk (`*`). Note that the total number of ancestors for this individual is 4, since two grandparents is missing, so we will exlcude this individual from further analysis. Note that I've also psuedo-anonymized the IDs in the plot.
 
 ```{r}
 # ID of individual to check.
-id = '740605'
+proband_id = '740605'
+
+# Make a pedigree of depth 2 for the individual.
+small_ped = buildPed(fad, id=proband_id, max.generations.up=2)
+
+# Anonymize the IDs.
+new_ids = 1:nrow(small_ped)
+names(new_ids) = small_ped$id  # Named vector, old ID to new ID mapping.
+new_father = new_ids[as.character(small_ped$father)]  # New father IDs.
+new_mother = new_ids[as.character(small_ped$mother)]  # New mother IDs.
+# Make a new pedigree dataframe with the new IDs.
+small_ped_anon = small_ped %>% mutate(family=family, id=new_ids, father=new_father, mother=new_mother)
+# Make this pedigree into a FAData object.
+small_fad_anon = FAData(small_ped_anon)
+
+# Get the anonymized ID of the proband.
+new_proband_id = new_ids[proband_id]
+
 # Count number of ancestors up to 2 generations back.
-anc = getAncestors(fad, id, max.generations=2)
-# Plot the pedigree of the individual.
-test_fad = FAData(buildPed(fad, id=id, max.generations.up=2))
+anc = getAncestors(small_fad_anon, new_proband_id, max.generations=2)
+
 # Highlight both the individual and the ancestors.
-plotPed(test_fad, id=c(id, anc), highlight.ids=anc, proband.id=id)
+plotPed(small_fad_anon, id=new_ids, highlight.ids=anc, proband.id=new_proband_id)
 ```
 
 For every FarGen participant, I shall calculate the number of ancestors up to 2 generations back. I also show a table, showing the frequency of each count value. We see that most of the individuals have four grandparents registered in the Genealogy Registry, which is good.
@@ -698,10 +714,14 @@ pheatmap(kc_mat_wgs_zero_diag,
 
 ## Get FarGen FN IDs
 
-Make a dataframe with RIN and FN of all WGS candidates and write this to a file.
+Make a dataframe with RIN, FN and region identifiers of all WGS candidates and write this to a file.
 
 ```{r}
+# Filter the FarGen participant ID list so that it only contains the WGS candidates (FN and RIN).
 wgs_candidate_list = fargen_ids_df %>% filter(rin %in% wgs_candidates)
+
+# Add a column with the region identifier.
+wgs_candidate_list = wgs_candidate_list %>% mutate(region=regions_fargen[wgs_candidates])
 
 wgs_candidate_list_path = '/home/olavur/experiments/2020-06-16_wgs_selection/data/wgs_selection/wgs_candidates.csv'
 write_csv(wgs_candidate_list, wgs_candidate_list_path)
