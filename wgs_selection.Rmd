@@ -429,7 +429,7 @@ ggplot(pc_df, aes(x=PC1, y=PC2)) +
 
 # Kinship distribution in the regions
 
-Below, in the next cell, we plot the distribution of kinship values for each region. We do this by making a kinship matrix subset that is only between individuals in a given region. The kinship values are plotted on a log-2 scale, since this makes the distributions easier to compare, and since the base 2 exponential is quite natural for kinship values. The plot then shows an estimated density via a "violin plot". Values of zero kinship are excluded from this plot.
+Below, in the next cell, we plot the distribution of kinship values for each region. We do this by making a kinship matrix subset that is only between individuals in a given region. The kinship values are plotted on a log-2 scale, since this makes the distributions easier to compare, and since the base 2 exponential is quite natural for kinship values. The plot then shows an estimated density. Values of zero kinship are excluded from this plot.
 
 ```{r}
 # Prepare a dataframe for plotting.
@@ -451,14 +451,16 @@ for (region in 1:6) {
 ```
 
 
-```{r}
+```{r fig.width=8, fig.height=5}
 # Plot the kinship distribution for each region using a "violin plot".
 kc_zero  <- sum(kc_region_df$kc == 0)
 log_kc_df = kc_region_df %>% transmute(kc=log2(kc[kc != 0]), region=region)
-ggplot(log_kc_df, aes(kc, factor(region))) + 
-    geom_violin() +
+color_palette <- c('#157EBF', '#78B430', '#FAA530', '#00E9E8', '#FFF73F', '#974C93')
+ggplot(log_kc_df, aes(kc, color=factor(region))) + 
+    geom_density() +
+    scale_colour_manual(values=color_palette) +
     scale_x_continuous("Kinship coefficient (log base 2)", labels=math_format(2^.x))+
-    labs(y='Region', title='Distribution of kinship values for each region')
+    labs(y='Smoothed density', title='Distribution of kinship values for each region', legend='Region')
 ```
 
 Note in the kinship distributions above that the regions are surprisingly similar. One key difference is that the capital region (3) has a longer lower tail than the others.
