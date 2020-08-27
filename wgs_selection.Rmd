@@ -416,7 +416,7 @@ Below, we plot the two first principal components with the regions color coded. 
 
 As we see in the plot, the variance explained is very small, less than a percent for PCs 1 and 2 combined. This argues for that while there is some population structure detectable by PCA, it is quite weak.
 
-```{r fig.width=10, fig.height=8}
+```{r fig.width=8, fig.height=6}
 # Use color palate from map above.
 color_palette <- c('#157EBF', '#78B430', '#FAA530', '#00E9E8', '#FFF73F', '#974C93')
 ggplot(pc_df, aes(x=PC1, y=PC2)) +
