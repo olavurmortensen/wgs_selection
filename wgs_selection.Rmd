@@ -436,7 +436,7 @@ Below, in the next cell, we plot the distribution of kinship values for each reg
 kc_region_df = data.frame(kc=c(), region=c())
 for (region in 1:6) {
     # Get IDs of individuals in region.
-    probands_region = probands_unrelated[regions_unrelated == region]
+    probands_region = probands_nonmissing[regions_nonmissing == region]
     
     # Get the kinship matrix for these individuals.
     kc_mat_region = kc_mat[probands_region, probands_region]
