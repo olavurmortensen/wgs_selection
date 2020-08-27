@@ -716,7 +716,7 @@ pheatmap(kc_mat_wgs_zero_diag,
 
 Make a dataframe with RIN, FN and region identifiers of all WGS candidates and write this to a file.
 
-```{r}
+```{r eval=FALSE}
 # Filter the FarGen participant ID list so that it only contains the WGS candidates (FN and RIN).
 wgs_candidate_list = fargen_ids_df %>% filter(rin %in% wgs_candidates)
 
