@@ -460,7 +460,7 @@ ggplot(log_kc_df, aes(kc, color=factor(region))) +
     geom_density() +
     scale_colour_manual(values=color_palette) +
     scale_x_continuous("Kinship coefficient (log base 2)", labels=math_format(2^.x))+
-    labs(y='Smoothed density', title='Distribution of kinship values for each region', legend='Region')
+    labs(y='Smoothed density', title='Distribution of kinship values for each region', color='Region')
 ```
 
 Note in the kinship distributions above that the regions are surprisingly similar. One key difference is that the capital region (3) has a longer lower tail than the others.
