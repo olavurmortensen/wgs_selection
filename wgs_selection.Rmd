@@ -416,14 +416,14 @@ Below, we plot the two first principal components with the regions color coded. 
 
 As we see in the plot, the variance explained is very small, less than a percent for PCs 1 and 2 combined. This argues for that while there is some population structure detectable by PCA, it is quite weak.
 
-```{r fig.width=8, fig.height=6}
+```{r fig.width=8, fig.height=7}
 # Use color palate from map above.
 color_palette <- c('#157EBF', '#78B430', '#FAA530', '#00E9E8', '#FFF73F', '#974C93')
-ggplot(pc_df, aes(x=PC1, y=PC2)) +
+ggplot(pc_df, aes(x=PC2, y=PC1)) +
   geom_point(size=0.7, aes(color=factor(regions_unrelated))) +
   scale_colour_manual(values=color_palette) +
-  labs(title="PCA of kinship", subtitle="Geographical stratification of the FarGen cohort", color='Region',
-       x=sprintf('PC 1 (%.2f %%)', var_expl[1]), y=sprintf('PC 2 (%.2f %%)', var_expl[2])) +
+  labs(title="Population structure in the FarGen cohort", subtitle="PCA of kinship matrix", color='Region',
+       x=sprintf('PC 2 (%.2f %%)', var_expl[2]), y=sprintf('PC 1 (%.2f %%)', var_expl[1])) +
   theme(plot.title=element_text(hjust=0.5), plot.subtitle=element_text(hjust=0.5))
 ```
 
@@ -712,6 +712,90 @@ pheatmap(kc_mat_wgs_zero_diag,
          annotation_colors=ann_colors,
          show_rownames=FALSE,
          show_colnames=FALSE)
+```
+
+## Population structure and the WGS candidates
+
+We will plot principal components 1 and 2 and annotate the WGS candidates. 
+
+```{r}
+# Union of WGS candidates and "unrelated" individuals (kc < 2^(-4)).
+probands_wgs_struct = unique(c(wgs_candidates, probands_unrelated))
+
+# Subset kinship matrix.
+kc_mat_wgs_struct = kc_mat[probands_wgs_struct, probands_wgs_struct]
+```
+
+Are there relationships above the threshold of $2^{-4}$?
+
+```{r}
+# Vector of kinship coefficients.
+kc_vec = kc_mat_wgs_struct[lower.tri(kc_mat_wgs_struct)]
+# Number of coefficients above threshold.
+n_related = sum(kc_vec > 2^(-4))
+writeLines(sprintf('#Relationships above 2^-4: %d', n_related))
+```
+
+Perform relatedness pruning. Since its only 9 relationships, we are a bit lazy and use the greedy algorithm.
+
+```{r}
+# Relatedness pruning via greedy algorithm.
+mask_related = greedy_prune_related(2^(-4), kc_mat_wgs_struct)
+# Subset proband list.
+probands_wgs_struct_unrelated = probands_wgs_struct[mask_related]
+# Subset kinship matrix.
+kc_mat_wgs_struct_unrelated = kc_mat_wgs_struct[probands_wgs_struct_unrelated, probands_wgs_struct_unrelated]
+
+writeLines(sprintf('#Individuals discarded: %d', sum(!mask_related)))
+```
+
+Sanity check: is the highest kinship coefficient under $2^{-4}$?
+
+```{r}
+# Compute max kc before and after pruning.
+max_kc_before = max(kc_mat_wgs_struct[lower.tri(kc_mat_wgs_struct)])
+max_kc_after = max(kc_mat_wgs_struct_unrelated[lower.tri(kc_mat_wgs_struct_unrelated)])
+
+writeLines(sprintf('Pruning threshold: 0.0625\nMax kinship before pruning: %.4f\nMax kinship after pruning: %.4f', max_kc_before, max_kc_after))
+```
+
+Perform principal component analysis of the kinship matrix.
+
+```{r}
+# Compute the first two principal components.
+kc_pc_wgs <- prcomp(kc_mat_wgs_struct_unrelated, rank.=2, scale.=TRUE)
+
+# Make a dataframe out of the rotated data, for plotting.
+pc_df_wgs <- data.frame(kc_pc_wgs$x)
+
+# Variance explained by each principal component, in percentage
+var_expl_wgs = 100 * kc_pc_wgs$sdev^2 / sum(kc_pc_wgs$sdev^2)
+```
+
+Plot PC 1 and 2. The WGS candidates are fairly well distributed across the FarGen cohort.
+
+```{r fig.width=8, fig.height=7}
+# Use color palate from map above.
+color_palette <- c('#157EBF', '#FAA530')
+
+# List of WGS candidates used in this PCA.
+wgs_candidates_pca = intersect(wgs_candidates, probands_wgs_struct_unrelated)
+
+# Indicator whether a proband is a WGS candidate (=1) or not (=0).
+wgs_status = rep(0, length(probands_wgs_struct_unrelated))
+names(wgs_status) = probands_wgs_struct_unrelated
+wgs_status[wgs_candidates_pca] = 1
+
+sizes = rep(.5, length(probands_wgs_struct_unrelated))
+names(sizes) = probands_wgs_struct_unrelated
+sizes[wgs_candidates_pca] = 1.5
+
+ggplot(pc_df_wgs, aes(x=PC2, y=PC1)) +
+  geom_point(size=sizes, aes(color=factor(wgs_status))) +
+  scale_colour_manual(values=color_palette) +
+  labs(title="Population structure and the WGS candidates", subtitle="PCA of kinship matrix", color='WGS status',
+       x=sprintf('PC 2 (%.2f %%)', var_expl_wgs[2]), y=sprintf('PC 2 (%.2f %%)', var_expl_wgs[1])) +
+  theme(plot.title=element_text(hjust=0.5), plot.subtitle=element_text(hjust=0.5))
 ```
 
 ## Get FarGen FN IDs
